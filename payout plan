@@ -1,0 +1,91 @@
+# Implementation Plan: Payouts & Withdrawals Section
+
+This plan outlines the steps to build the dedicated Payouts & Withdrawals section in TraderOS, ensuring seamless integration with the existing Capital and Analytics structures.
+
+## Database Schema Updates
+
+We need to create the `payouts` table to store withdrawal records securely.
+
+### Proposed SQL Execution:
+```sql
+CREATE TABLE IF NOT EXISTS payouts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) NOT NULL,
+  account_id UUID REFERENCES capital_accounts(id) NOT NULL,
+  amount NUMERIC NOT NULL CHECK (amount > 0),
+  note TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE payouts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own payouts" ON payouts FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own payouts" ON payouts FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own payouts" ON payouts FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own payouts" ON payouts FOR DELETE USING (auth.uid() = user_id);
+```
+
+> [!IMPORTANT]  
+> I will create a temporary script `apply_payouts_schema.mjs` to execute this SQL against your Supabase database safely, then delete the script. I will also append this table definition to `supabase/schema.sql` for future reference.
+
+## Proposed Changes
+
+---
+
+### Database Setup
+#### [MODIFY] [schema.sql](file:///c:/Users/emeka/Documents/CODING%20PROJECTS/traderapp/supabase/schema.sql)
+Append the `payouts` table definition and RLS policies to keep the schema definition up to date.
+
+#### [NEW] `apply_payouts_schema.mjs` (Temporary)
+A temporary node script to run the new SQL statements and apply them to the live Supabase instance.
+
+---
+
+### Core Payouts Feature
+#### [MODIFY] [page.tsx](file:///c:/Users/emeka/Documents/CODING%20PROJECTS/traderapp/app/%28dashboard%29/payouts/page.tsx)
+Build out the dedicated payouts page:
+- Fetch user capital accounts for the dropdown menu.
+- Fetch payout history linked to the user.
+- Implement the Add Payout form with validation (`amount > 0`, `amount <= current_balance`).
+- Build a responsive table for Payout History showing Date, Account Name, Amount (styled red, e.g., `-$500`), and Notes.
+- Add Edit and Delete actions for payout records.
+- Wire up Realtime subscriptions so the page syncs automatically.
+
+---
+
+### Global Balance Updates
+
+We need to update calculations globally so that:
+`Balance = Starting Capital + Total PnL - Total Payouts`
+
+#### [MODIFY] [overview-balance-card.tsx](file:///c:/Users/emeka/Documents/CODING%20PROJECTS/traderapp/components/capital/overview-balance-card.tsx)
+- Fetch payouts and subtract `Total Payouts` from the calculated `overviewBalance`.
+- Subscribe to the `payouts` table for realtime updates.
+
+#### [MODIFY] [page.tsx (Dashboard)](file:///c:/Users/emeka/Documents/CODING%20PROJECTS/traderapp/app/%28dashboard%29/dashboard/page.tsx)
+- Update the main `balance` calculation to subtract payouts.
+- Include a "Total Payouts" tile (or integrate payout data into existing metrics if needed, per instructions).
+- Add the Realtime subscription for `payouts`.
+
+#### [MODIFY] [page.tsx (Account Dashboard)](file:///c:/Users/emeka/Documents/CODING%20PROJECTS/traderapp/app/%28dashboard%29/accounts/%5BaccountId%5D/page.tsx)
+- Fetch payouts specific to `accountId`.
+- Subtract account-specific payouts from `currentBalance` and `overallPnL`.
+- Add a "Total Payouts" stat card to the grid for this account.
+
+---
+
+## Verification Plan
+
+### Automated/Manual Verification
+- Run `node apply_payouts_schema.mjs` to execute schema changes and verify success.
+- Start the Next.js dev server.
+- Add a $100 payout via the new Payouts page.
+- Verify the Payouts Page history table reflects the entry.
+- Check the **Capital Page**, **Dashboard**, and **Account Dashboard** to confirm balances dropped by $100 in real-time.
+- Test validation logic: attempt to withdraw an amount exceeding the account balance (should fail with "Insufficient balance").
+- Edit and delete the payout, ensuring balances restore appropriately.
+
+## User Review Required
+
+> [!NOTE]  
+> Before proceeding, please review the plan. If you approve, I will execute these changes immediately and implement the Payouts system.

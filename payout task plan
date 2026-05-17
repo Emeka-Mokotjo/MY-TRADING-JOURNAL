@@ -1,0 +1,19 @@
+# Payouts & Withdrawals Implementation Tasks
+
+- [/] Verify database schema and update `supabase/schema.sql`
+- [ ] Build the Payouts Page (`app/(dashboard)/payouts/page.tsx`)
+  - [ ] Fetch accounts and payouts
+  - [ ] Add payout form with validation
+  - [ ] Payouts history table (Edit/Delete functionality)
+- [ ] Update Global Overview Balance (`components/capital/overview-balance-card.tsx`)
+  - [ ] Subtract payouts from total balance
+  - [ ] Realtime sync for payouts
+- [ ] Update Global Dashboard (`app/(dashboard)/dashboard/page.tsx`)
+  - [ ] Subtract payouts from balance metric
+  - [ ] Add Total Payouts tile
+  - [ ] Realtime sync for payouts
+- [ ] Update Account Dashboard (`app/(dashboard)/accounts/[accountId]/page.tsx`)
+  - [ ] Subtract payouts from account balance
+  - [ ] Add Total Payouts tile
+  - [ ] Realtime sync for payouts
+- [ ] Verification and testing
